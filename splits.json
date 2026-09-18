@@ -1,0 +1,92 @@
+{
+ "updated_at": "2026-09-18T19:52:46Z",
+ "start": "2026-09-18T15:00:10.900Z",
+ "source": "live.aravaiparunning.com",
+ "arrivals": [
+  {
+   "name": "Start",
+   "mi": 0.0,
+   "arrivedAt": "2026-09-18T15:00:10.900Z"
+  },
+  {
+   "name": "Mt Werner Out",
+   "mi": 4.6,
+   "arrivedAt": "2026-09-18T16:38:33.719Z"
+  },
+  {
+   "name": "Fish Creek Falls",
+   "mi": 16.8,
+   "arrivedAt": "2026-09-18T18:57:49.250Z"
+  },
+  {
+   "name": "Long Lake Station Out",
+   "mi": 23.4,
+   "arrivedAt": null
+  },
+  {
+   "name": "Summit Lake Out",
+   "mi": 29.3,
+   "arrivedAt": null
+  },
+  {
+   "name": "Billy's Rabbit Hole Out",
+   "mi": 33.5,
+   "arrivedAt": null
+  },
+  {
+   "name": "Dry Lake Out",
+   "mi": 43.7,
+   "arrivedAt": null
+  },
+  {
+   "name": "Olympian Hall Out",
+   "mi": 50.5,
+   "arrivedAt": null
+  },
+  {
+   "name": "Lane of Pain 1 Out",
+   "mi": 53.6,
+   "arrivedAt": null
+  },
+  {
+   "name": "Lane of Pain 2 Back",
+   "mi": 57.2,
+   "arrivedAt": null
+  },
+  {
+   "name": "Olympian Hall Back",
+   "mi": 63.0,
+   "arrivedAt": null
+  },
+  {
+   "name": "Dry Lake Back",
+   "mi": 69.9,
+   "arrivedAt": null
+  },
+  {
+   "name": "Billy's Rabbit Hole Back",
+   "mi": 75.7,
+   "arrivedAt": null
+  },
+  {
+   "name": "Summit Lake Back",
+   "mi": 79.9,
+   "arrivedAt": null
+  },
+  {
+   "name": "Long Lake Back",
+   "mi": 88.1,
+   "arrivedAt": null
+  },
+  {
+   "name": "Mt Werner Back",
+   "mi": 95.1,
+   "arrivedAt": null
+  },
+  {
+   "name": "Finish",
+   "mi": 101.1,
+   "arrivedAt": null
+  }
+ ]
+}
