@@ -2,7 +2,7 @@ name: Update inReach position
 
 on:
   schedule:
-    - cron: "*/5 * * * *"
+        - cron: "3-59/5 * * * *"   # fires at :03,:08,:13,… — far less throttled than */5
   workflow_dispatch:
   push:
     branches: [ main ]
