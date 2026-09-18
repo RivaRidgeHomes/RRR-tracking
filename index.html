@@ -1,0 +1,422 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Rabbit Run 100 Tracker</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --bg:#10141a; --panel:#181e27; --panel2:#212a36; --line:#2c3644;
+    --ink:#f2f5f9; --ink-dim:#9fb0c3; --ink-mute:#6d7f93;
+    --accent:#f0663a; --route:#3d8bff; --done:#39c07a; --live:#ff3b30; --warn:#ffb020;
+    --shadow:0 6px 24px rgba(0,0,0,.45);
+  }
+  html,body{height:100%;margin:0}
+  body{background:var(--bg); color:var(--ink); font-family:"Inter",system-ui,-apple-system,sans-serif; -webkit-font-smoothing:antialiased;}
+  #map{position:fixed; inset:0; z-index:1; background:#0b0e13}
+  .leaflet-container{background:#0b0e13; font-family:inherit}
+
+  .panel{position:fixed; z-index:1000; top:calc(env(safe-area-inset-top,0px) + 12px); left:12px;
+    width:326px; max-width:calc(100vw - 24px);
+    background:color-mix(in srgb, var(--panel) 94%, transparent); backdrop-filter:blur(10px);
+    border:1px solid var(--line); border-radius:16px; box-shadow:var(--shadow); overflow:hidden;
+    display:flex; flex-direction:column; max-height:calc(100vh - 24px);}
+  .phead{padding:13px 16px 11px; border-bottom:1px solid var(--line); flex:0 0 auto;
+    background:linear-gradient(180deg, color-mix(in srgb,var(--accent) 16%, transparent), transparent);}
+  .eyebrow{font-family:"Oswald",sans-serif; letter-spacing:.13em; text-transform:uppercase; font-size:10.5px; font-weight:600; color:var(--accent); margin:0 0 3px}
+  .runner{font-family:"Oswald",sans-serif; font-weight:700; font-size:21px; margin:0; line-height:1.05}
+  .status{display:flex; align-items:center; gap:7px; margin-top:6px; font-size:12px; color:var(--ink-dim)}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--done);box-shadow:0 0 0 0 var(--done);animation:pulse 2s infinite}
+  .dot.stale{background:var(--warn);animation:none}
+  .dot.dead{background:var(--ink-mute);animation:none}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--done) 60%,transparent)}70%{box-shadow:0 0 0 8px transparent}100%{box-shadow:0 0 0 0 transparent}}
+
+  .pbody{padding:13px 16px 2px; overflow-y:auto; flex:1 1 auto}
+  .next{background:var(--panel2); border:1px solid var(--line); border-radius:12px; padding:11px 14px; margin-bottom:11px}
+  .next .lab{font-size:10px; letter-spacing:.12em; text-transform:uppercase; color:var(--ink-mute); font-weight:600}
+  .next .aid{font-family:"Oswald",sans-serif; font-size:19px; font-weight:600; margin:2px 0 2px; line-height:1.1}
+  .next .sub{font-size:11px; color:var(--ink-dim); margin-bottom:9px}
+  .metrics{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+  .metric .n{font-family:"Oswald",sans-serif; font-weight:700; font-size:22px; line-height:1; font-variant-numeric:tabular-nums}
+  .metric .u{font-size:10.5px; color:var(--ink-dim); margin-top:3px}
+  .eta .n{color:var(--accent)}
+
+  .prog{margin:2px 0 10px}
+  .barwrap{position:relative; height:8px; border-radius:6px; background:var(--panel2); overflow:hidden; border:1px solid var(--line)}
+  .bar{position:absolute; inset:0 auto 0 0; background:linear-gradient(90deg,var(--done),var(--accent)); border-radius:6px}
+  .ticks{position:absolute; inset:0; pointer-events:none}
+  .ticks i{position:absolute; top:0; bottom:0; width:1px; background:color-mix(in srgb,var(--ink-mute) 45%,transparent)}
+  .progmeta{display:flex; justify-content:space-between; font-size:11px; color:var(--ink-dim); margin-top:6px; font-variant-numeric:tabular-nums}
+
+  .finrow{display:flex; align-items:baseline; gap:8px; padding:9px 12px; margin-bottom:8px; border-radius:11px;
+    background:color-mix(in srgb,var(--accent) 10%, var(--panel2)); border:1px solid color-mix(in srgb,var(--accent) 30%, var(--line))}
+  .finrow .fl{font-size:10.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-mute); font-weight:600}
+  .finrow .fc{font-family:"Oswald",sans-serif; font-weight:700; font-size:16px; color:var(--accent); margin-left:auto; font-variant-numeric:tabular-nums}
+  .finrow .fi{font-size:11px; color:var(--ink-dim); font-variant-numeric:tabular-nums; flex-basis:100%; text-align:right; margin-top:-2px}
+
+  .aidhdr{display:grid; grid-template-columns:16px 1fr auto auto auto; gap:9px; padding:6px 16px 4px; margin:0 -16px;
+    border-top:1px solid var(--line); font-size:9.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-mute); font-weight:600}
+  .aidhdr span:nth-child(3),.aidhdr span:nth-child(4),.aidhdr span:nth-child(5){text-align:right}
+  .aids{margin:0 -16px 0; padding:2px 0 0}
+  .aidrow{display:grid; grid-template-columns:16px 1fr auto auto auto; gap:9px; align-items:baseline; padding:6px 16px; font-size:12.5px}
+  .aidrow .idx{color:var(--ink-mute); font-variant-numeric:tabular-nums; font-size:11px}
+  .aidrow .lp{color:var(--ink-mute); font-variant-numeric:tabular-nums; font-size:11px; min-width:30px; text-align:right}
+  .aidrow.done .lp{color:transparent}
+  .aidrow.done{color:var(--ink-mute)}
+  .aidrow.now{background:color-mix(in srgb,var(--accent) 13%, transparent)}
+  .aidrow .nm{font-weight:500; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .aidrow .nm small{color:var(--ink-mute); font-weight:400}
+  .aidrow.done .nm{color:var(--ink-mute)}
+  .aidrow.now .nm{color:var(--accent); font-weight:600}
+  .aidrow .mi{color:var(--ink-dim); font-variant-numeric:tabular-nums; text-align:right; min-width:30px}
+  .aidrow .et{color:var(--accent); font-variant-numeric:tabular-nums; min-width:50px; text-align:right}
+  .aidrow.done .et{color:var(--done)}
+
+  .foot{display:flex; gap:8px; padding:9px 16px 11px; align-items:center; justify-content:space-between; border-top:1px solid var(--line); flex:0 0 auto}
+  .foot .src{font-size:10px; color:var(--ink-mute); line-height:1.35}
+  button.refresh{font:inherit; font-size:12px; font-weight:600; color:var(--ink); background:var(--panel2); border:1px solid var(--line); border-radius:9px; padding:7px 12px; cursor:pointer; white-space:nowrap}
+  button.refresh:hover{border-color:var(--accent); color:var(--accent)}
+  button.refresh:disabled{opacity:.5; cursor:default}
+
+  .elev{position:fixed; z-index:1000; left:352px; right:12px; bottom:calc(env(safe-area-inset-bottom,0px) + 12px);
+    height:82px; background:color-mix(in srgb,var(--panel) 92%, transparent); backdrop-filter:blur(10px);
+    border:1px solid var(--line); border-radius:14px; box-shadow:var(--shadow); padding:6px 10px 4px}
+  .elev .cap{position:absolute; top:6px; left:12px; font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-mute); font-weight:600; pointer-events:none}
+  .elev svg{width:100%; height:100%; display:block}
+  @media (max-width:640px){
+    /* bottom-sheet: keep the map visible above the panel */
+    .panel{left:0; right:0; width:auto; top:auto; bottom:0; max-height:56vh;
+      border-radius:18px 18px 0 0; border-bottom:none; box-shadow:0 -6px 24px rgba(0,0,0,.45)}
+    .panel::before{content:""; position:absolute; top:6px; left:50%; transform:translateX(-50%);
+      width:38px; height:4px; border-radius:3px; background:var(--ink-mute); opacity:.5; z-index:2}
+    .phead{padding-top:15px}
+    .elev{display:none}
+  }
+
+  .runner-mk{position:relative}
+  .runner-mk .core{width:16px;height:16px;border-radius:50%;background:var(--live);border:2.5px solid #fff;box-shadow:0 0 0 2px rgba(0,0,0,.35), 0 2px 6px rgba(0,0,0,.5)}
+  .runner-mk .ring{position:absolute; inset:-6px; border-radius:50%; border:2px solid var(--live); opacity:.7; animation:ring 2.2s ease-out infinite}
+  @keyframes ring{0%{transform:scale(.5);opacity:.8}100%{transform:scale(2.1);opacity:0}}
+  .aid-mk{background:var(--panel); border:1.5px solid var(--accent); border-radius:50%; width:12px;height:12px; box-shadow:0 1px 4px rgba(0,0,0,.5)}
+  .aid-mk.passed{border-color:var(--done); background:var(--done)}
+  .aid-mk.nextup{background:var(--accent); box-shadow:0 0 0 4px color-mix(in srgb,var(--accent) 35%,transparent)}
+  .leaflet-tooltip.aidlab{background:var(--panel); color:var(--ink); border:1px solid var(--line); box-shadow:var(--shadow); font-size:11px; font-weight:600; padding:3px 7px; border-radius:6px}
+  .leaflet-tooltip.aidlab::before{display:none}
+
+  @media (prefers-color-scheme: light){ :root:not([data-theme="dark"]){
+    --bg:#eef1f5; --panel:#ffffff; --panel2:#f1f4f8; --line:#d8dfe8; --ink:#16202c; --ink-dim:#516074; --ink-mute:#8493a5; --shadow:0 6px 22px rgba(30,45,70,.16);}}
+  :root[data-theme="light"]{ --bg:#eef1f5; --panel:#ffffff; --panel2:#f1f4f8; --line:#d8dfe8; --ink:#16202c; --ink-dim:#516074; --ink-mute:#8493a5; --shadow:0 6px 22px rgba(30,45,70,.16);}
+</style>
+</head>
+<body>
+<div id="map"></div>
+
+<div class="panel">
+  <div class="phead">
+    <p class="eyebrow">Run Rabbit Run · 100 · Tortoise</p>
+    <h1 class="runner" id="runnerName">Loading…</h1>
+    <div class="status"><span class="dot" id="liveDot"></span><span id="statusText">Fetching position…</span></div>
+  </div>
+  <div class="pbody">
+    <div class="next">
+      <div class="lab">Next aid station</div>
+      <div class="aid" id="nextAid">—</div>
+      <div class="sub" id="nextSub"></div>
+      <div class="metrics">
+        <div class="metric"><div class="n" id="nextDist">—</div><div class="u">miles to go</div></div>
+        <div class="metric eta"><div class="n" id="nextEta">—</div><div class="u" id="nextEtaU">est. arrival</div></div>
+      </div>
+    </div>
+    <div class="prog">
+      <div class="barwrap"><div class="bar" id="bar" style="width:0%"></div><div class="ticks" id="ticks"></div></div>
+      <div class="progmeta"><span id="progMi">— mi</span><span id="progPace">—</span><span id="progTot">101.8 mi</span></div>
+    </div>
+    <div class="finrow">
+      <span class="fl">Projected finish</span>
+      <span class="fc" id="finClock">—</span>
+      <span class="fi" id="finIn"></span>
+    </div>
+    <div class="aidhdr"><span></span><span>Aid station</span><span>mph</span><span>mile</span><span>ETA</span></div>
+    <div class="aids" id="aidList"></div>
+  </div>
+  <div class="foot">
+    <div class="src">inReach: share.garmin.com/seetedrun<br><span id="ageText">—</span></div>
+    <button class="refresh" id="refreshBtn">Refresh</button>
+  </div>
+</div>
+
+<div class="elev">
+  <span class="cap">Elevation · 101.8 mi · 20,100 ft gain</span>
+  <svg id="elevSvg" viewBox="0 0 1000 150" preserveAspectRatio="none"></svg>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="routedata100.js"></script>
+<script>
+(function(){
+  "use strict";
+  var R=window.ROUTE, track=R.track, cum=R.cum_m, WP=R.waypoints, SCALE=R.scale;
+  var M2MI=1/1609.34, KMH2MPH=0.621371;
+  var TOT=R.official_total_mi;                       // 101.8
+  var START_UTC=Date.parse('2026-09-18T15:00:00Z');  // his start: 09:00 MDT (UTC-6)
+  function courseMi(idx){ return cum[idx]*M2MI/SCALE; }
+
+  /* grade-aware "effort miles" (precomputed in routedata100.js from smoothed elevation):
+     1 horizontal mile + 1 mile per 1000 ft of climb, with a mild capped descent credit. */
+  var effCum=R.eff, effTotal=R.eff_total;
+
+  var cssv=function(n){return getComputedStyle(document.documentElement).getPropertyValue(n).trim();};
+
+  /* map */
+  var map=L.map('map',{zoomControl:true, attributionControl:true}).setView([40.48,-106.72],11);
+  L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',{maxZoom:17,subdomains:'abc',
+    attribution:'© OpenTopoMap (CC-BY-SA) · © OpenStreetMap contributors'}).addTo(map);
+  var latlngs=track.map(function(p){return [p[0],p[1]];});
+  var remLine=L.polyline(latlngs,{color:cssv('--route')||'#3d8bff',weight:3.5,opacity:.85}).addTo(map);
+  var doneLine=L.polyline([],{color:cssv('--done')||'#39c07a',weight:5,opacity:.95}).addTo(map);
+  function fitRoute(){ try{ map.invalidateSize();
+    var narrow=window.innerWidth<=640;
+    if(narrow){ map.fitBounds(remLine.getBounds(),{paddingTopLeft:[24,24], paddingBottomRight:[24, Math.round(window.innerHeight*0.56)+16]}); }
+    else { map.fitBounds(remLine.getBounds(),{paddingTopLeft:[350,28], paddingBottomRight:[28,96]}); }
+  }catch(e){} }
+  fitRoute(); window.addEventListener('load',function(){setTimeout(fitRoute,150);}); setTimeout(fitRoute,500); setTimeout(fitRoute,1400);
+
+  var aidMarkers=WP.map(function(w){
+    var m=L.marker([w.lat,w.lon],{icon:L.divIcon({className:'',html:'<div class="aid-mk"></div>',iconSize:[12,12],iconAnchor:[6,6]})}).addTo(map);
+    m.bindTooltip(w.name+' · '+w.mi.toFixed(1)+' mi · '+w.elev_ft.toLocaleString()+' ft',{direction:'top',className:'aidlab',offset:[0,-6]});
+    return m;
+  });
+  var runnerMk=L.marker([R.initial_fix.lat,R.initial_fix.lon],{icon:L.divIcon({className:'',html:'<div class="runner-mk"><div class="ring"></div><div class="core"></div></div>',iconSize:[16,16],iconAnchor:[8,8]}),zIndexOffset:1000}).addTo(map);
+
+  /* forward-progress snapping, bounded by feasible race distance (resolves out/back overlaps) */
+  var MAX_MPH=12;                            // nobody covers ground faster than this avg -> caps how far along he can be
+  function cumidxFor(mi){ var target=mi*1609.34*SCALE, lo=0, hi=cum.length-1; while(lo<hi){ var m=(lo+hi)>>1; if(cum[m]<target) lo=m+1; else hi=m; } return lo; }
+  var progIdx=R.initial_fix.seed_idx||0;
+  try{ var sv=localStorage.getItem('rrr100_progIdx_v2'); if(sv!=null) progIdx=Math.max(progIdx,parseInt(sv,10)||0); }catch(e){}
+  function snapForward(lat,lon,tsMs){
+    var elapsedH=(tsMs-START_UTC)/3600000;
+    var maxIdx=cumidxFor(Math.max(7, elapsedH*MAX_MPH + 3));   // physical ceiling on distance covered
+    if(progIdx>maxIdx) progIdx=Math.max(0,maxIdx-100);          // unstick any stale/teleported value
+    var a=Math.max(0,progIdx-280), b=Math.min(track.length, maxIdx+1, progIdx+2700);
+    if(b<=a) b=Math.min(track.length,a+1);
+    var best=a, bd=Infinity;
+    for(var i=a;i<b;i++){ var dy=track[i][0]-lat, dx=(track[i][1]-lon)*0.76, d=dy*dy+dx*dx; if(d<bd){bd=d;best=i;} }
+    var off=Math.sqrt(bd)*111000;
+    if(off>320){                                               // window miss -> re-acquire, but only within feasible range
+      var gb=best, gd=bd;
+      for(var j=0;j<=maxIdx;j++){ var e1=track[j][0]-lat, e2=(track[j][1]-lon)*0.76, dd=e1*e1+e2*e2; if(dd<gd){gd=dd;gb=j;} }
+      best=gb; off=Math.sqrt(gd)*111000;
+    }
+    progIdx=best; try{ localStorage.setItem('rrr100_progIdx_v2',String(best)); }catch(e){}
+    return {idx:best, off_m:off};
+  }
+
+  var LS='rrr100_seetedrun_fixes_v2'; var hist=[];
+  try{ hist=JSON.parse(localStorage.getItem(LS)||'[]'); }catch(e){ hist=[]; }
+  function pushFix(ts,curMi,curEff){
+    var t=Date.parse(ts); if(isNaN(t)) return;
+    if(hist.length && hist[hist.length-1].ts===ts) return;
+    hist.push({ts:ts,mi:curMi,eff:curEff}); if(hist.length>300) hist=hist.slice(-300);
+    try{ localStorage.setItem(LS,JSON.stringify(hist)); }catch(e){}
+  }
+  // recent effort pace = effort-miles per hour over the last ~90 min of fixes
+  function rollingEffPace(){
+    if(hist.length<2) return null;
+    var last=hist[hist.length-1], lt=Date.parse(last.ts), win=90*60000, ref=null;
+    for(var i=hist.length-2;i>=0;i--){ if(lt-Date.parse(hist[i].ts)<=win) ref=hist[i]; else break; }
+    if(!ref) ref=hist[0];
+    if(last.eff==null||ref.eff==null) return null;
+    var de=last.eff-ref.eff, dh=(lt-Date.parse(ref.ts))/3600000;
+    if(dh<0.2 || de<0.3) return null;
+    var p=de/dh; return (p>0.3&&p<14)?p:null;
+  }
+  // effort pace over [aMs,bMs]
+  function paceIn(aMs,bMs){
+    var lo=null,hi=null;
+    for(var i=0;i<hist.length;i++){ var ti=Date.parse(hist[i].ts); if(ti>=aMs&&ti<=bMs){ if(hist[i].eff==null) continue; if(lo===null)lo=hist[i]; hi=hist[i]; } }
+    if(!lo||!hi||lo===hi) return null;
+    var dh=(Date.parse(hi.ts)-Date.parse(lo.ts))/3600000; return dh>0.1?(hi.eff-lo.eff)/dh:null;
+  }
+  // compare last ~45 min vs the ~45 min before it
+  function paceTrend(){
+    if(hist.length<4) return '';
+    var t=Date.parse(hist[hist.length-1].ts);
+    var recent=paceIn(t-45*60000,t), prior=paceIn(t-95*60000,t-45*60000);
+    if(recent==null||prior==null) return '';
+    var r=recent/prior;
+    return r<0.9?'slowing':(r>1.1?'speeding up':'steady');
+  }
+
+  function fmtClock(dt){ return dt.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}); }
+  function fmtDur(min){ if(!isFinite(min)||min<0) return '—'; if(min<60) return Math.round(min)+' min'; var h=Math.floor(min/60),m=Math.round(min%60); return h+'h '+(m<10?'0':'')+m+'m'; }
+  function legOf(w){ return /Out|↑CD|Flash|↑? *$/ ; }
+
+  function render(fix){
+    var dispName=R.initial_fix.name;
+    if(fix.name && !/^KML|Export|^\d{1,2}\//i.test(fix.name)) dispName=fix.name;
+    document.getElementById('runnerName').textContent=dispName;
+
+    var sp=snapForward(fix.lat,fix.lon,Date.parse(fix.ts));
+    var curMi=courseMi(sp.idx);
+    runnerMk.setLatLng([fix.lat,fix.lon]);
+    doneLine.setLatLngs(latlngs.slice(0,sp.idx+1));
+
+    var curEff=effCum[sp.idx];
+    pushFix(fix.ts,curMi,curEff);
+    var elapsedH=(Date.parse(fix.ts)-START_UTC)/3600000;
+    var inst=(fix.speed_kmh!=null)? fix.speed_kmh*KMH2MPH : null;
+    // effort pace (effort-miles per hour): recent history, else avg since start, else current speed
+    var rollE=rollingEffPace();
+    var avgE=(elapsedH>0.3 && curEff>0.5)? curEff/elapsedH : null;
+    var effMph = rollE || avgE || inst || 2.5;
+    var paceSrc = rollE?'recent':(avgE?'avg':'est');
+    // --- forward projection with fatigue fade: projected pace declines with time-on-feet ahead ---
+    var FADE_PER_HR=0.02, FADE_FLOOR=0.60;   // ~2%/hr slowdown from here, floored at 60% of current effort pace
+    var proj={};                              // wpIndex -> {etaMin, legMph}
+    (function(){
+      var pm=0, prevEff=curEff, prevMi=curMi;
+      for(var j=0;j<WP.length;j++){
+        if(WP[j].mi<=curMi+0.06) continue;    // already passed
+        var segEff=effCum[WP[j].idx]-prevEff;
+        var fade=Math.max(FADE_FLOOR, 1-FADE_PER_HR*(pm/60));
+        var segMin=segEff/(effMph*fade)*60;
+        pm+=segMin;
+        proj[j]={etaMin:pm, legMph:(WP[j].mi-prevMi)/(segMin/60)};
+        prevEff=effCum[WP[j].idx]; prevMi=WP[j].mi;
+      }
+      proj._finishMin=pm;
+    })();
+
+    var next=null, nextI=-1;
+    for(var i=0;i<WP.length;i++){ if(WP[i].mi>curMi+0.06){ next=WP[i]; nextI=i; break; } }
+    var now=new Date();
+    if(next){
+      var rem=next.mi-curMi, etaMin=proj[nextI].etaMin, lmph=proj[nextI].legMph;
+      document.getElementById('nextAid').textContent=next.name;
+      document.getElementById('nextSub').textContent='mile '+next.mi.toFixed(1)+' · '+next.elev_ft.toLocaleString()+' ft';
+      document.getElementById('nextDist').textContent=rem.toFixed(1);
+      document.getElementById('nextEta').textContent=fmtClock(new Date(now.getTime()+etaMin*60000));
+      document.getElementById('nextEtaU').textContent='≈ '+fmtDur(etaMin)+' · '+lmph.toFixed(1)+' mph this leg';
+    } else {
+      document.getElementById('nextAid').textContent='Finish reached 🏁';
+      document.getElementById('nextSub').textContent='';
+      document.getElementById('nextDist').textContent='0.0';
+      document.getElementById('nextEta').textContent='—';
+    }
+
+    // projected finish (grade-aware + fatigue fade)
+    var finMin=proj._finishMin;
+    var finDate=new Date(now.getTime()+finMin*60000);
+    var totalMin=(Date.parse(fix.ts)-START_UTC)/60000 + finMin;
+    if(next){
+      document.getElementById('finClock').textContent=finDate.toLocaleDateString([], {weekday:'short'})+' '+fmtClock(finDate);
+      document.getElementById('finIn').textContent=fmtDur(finMin)+' to go · ~'+fmtDur(totalMin)+' elapsed';
+    } else { document.getElementById('finClock').textContent='🏁 finished'; document.getElementById('finIn').textContent=''; }
+
+    var pct=Math.max(0,Math.min(100,curMi/TOT*100));
+    document.getElementById('bar').style.width=pct.toFixed(1)+'%';
+    document.getElementById('progMi').textContent=curMi.toFixed(1)+' mi';
+    document.getElementById('progTot').textContent=TOT.toFixed(1)+' mi';
+    var trend=paceTrend();
+    document.getElementById('progPace').textContent=effMph.toFixed(1)+' mph effort ('+paceSrc+(trend?' · '+trend:'')+')';
+
+    var html='';
+    for(var j=0;j<WP.length;j++){
+      var w=WP[j], done=w.mi<=curMi+0.06, cls=done?'done':'';
+      if(next&&w===next) cls='now';
+      var et = done?'✓':fmtClock(new Date(now.getTime()+proj[j].etaMin*60000));
+      var lp = done?'':proj[j].legMph.toFixed(1);
+      html+='<div class="aidrow '+cls+'"><span class="idx">'+(j===WP.length-1?'F':j+1)+'</span>'+
+            '<span class="nm">'+w.name+'</span>'+
+            '<span class="lp">'+lp+'</span>'+
+            '<span class="mi">'+w.mi.toFixed(1)+'</span>'+
+            '<span class="et">'+et+'</span></div>';
+    }
+    document.getElementById('aidList').innerHTML=html;
+    for(var k=0;k<WP.length;k++){ var el=aidMarkers[k].getElement(); if(!el)continue; var dd=el.querySelector('.aid-mk'); if(dd) dd.className='aid-mk'+(WP[k].mi<=curMi+0.06?' passed':(next&&WP[k]===next?' nextup':'')); }
+
+    var ageMin=(Date.now()-Date.parse(fix.ts))/60000;
+    var dot=document.getElementById('liveDot'), st=document.getElementById('statusText');
+    dot.className='dot'+(ageMin>45?' dead':ageMin>15?' stale':'');
+    var moving=inst!=null&&inst>0.4, whenStr=fmtClock(new Date(fix.ts));
+    st.textContent=(ageMin>15?('last fix '+whenStr):(moving?(inst.toFixed(1)+' mph · '+whenStr):('paused · '+whenStr)));
+    document.getElementById('ageText').textContent='last point '+(ageMin<1.5?'just now':fmtDur(ageMin)+' ago')+' · off-route '+Math.round(sp.off_m)+' m';
+
+    drawElev(sp.idx);
+  }
+
+  var elevBuilt=false;
+  function drawElev(curIdx){
+    var svg=document.getElementById('elevSvg'), W=1000,H=150,pad=4, ele=R.ele, n=track.length;
+    var emin=Infinity,emax=-Infinity; for(var i=0;i<n;i++){ if(ele[i]!=null){ if(ele[i]<emin)emin=ele[i]; if(ele[i]>emax)emax=ele[i]; } }
+    function X(i){ return pad+(i/(n-1))*(W-2*pad); }
+    function Y(e){ return H-pad-((e-emin)/(emax-emin))*(H-2*pad-10); }
+    if(!elevBuilt){
+      var step=Math.max(1,Math.ceil(n/950)), d='M '+X(0)+' '+Y(ele[0]);
+      for(var i2=step;i2<n;i2+=step){ if(ele[i2]!=null) d+=' L '+X(i2)+' '+Y(ele[i2]); }
+      var rt=cssv('--route'), acc=cssv('--accent'), dn=cssv('--done');
+      var mk=''; for(var w=0;w<WP.length;w++){ var xx=X(WP[w].idx); mk+='<line x1="'+xx+'" y1="0" x2="'+xx+'" y2="'+H+'" stroke="'+rt+'" stroke-opacity=".18" stroke-width="1"/>'; }
+      svg.innerHTML='<path d="'+d+' L '+X(n-1)+' '+H+' L '+X(0)+' '+H+' Z" fill="'+rt+'" fill-opacity=".13"/>'+
+        '<path id="elDone" d="" fill="none" stroke="'+dn+'" stroke-width="2.2"/>'+
+        '<path d="'+d+'" fill="none" stroke="'+rt+'" stroke-width="1.5" stroke-opacity=".8"/>'+mk+
+        '<line id="elC" x1="0" y1="0" x2="0" y2="'+H+'" stroke="'+acc+'" stroke-width="2"/>'+
+        '<circle id="elD" r="4" fill="'+acc+'" stroke="#fff" stroke-width="1.5"/>';
+      elevBuilt=true; svg._step=step; svg._d=d;
+    }
+    var step2=svg._step, dd='M '+X(0)+' '+Y(ele[0]);
+    for(var q=step2;q<=curIdx;q+=step2){ if(ele[q]!=null) dd+=' L '+X(q)+' '+Y(ele[q]); }
+    var done=document.getElementById('elDone'); if(done) done.setAttribute('d',dd);
+    var cx=X(curIdx), cy=Y(ele[curIdx]!=null?ele[curIdx]:emin);
+    var c=document.getElementById('elC'), dt=document.getElementById('elD');
+    if(c){ c.setAttribute('x1',cx); c.setAttribute('x2',cx); } if(dt){ dt.setAttribute('cx',cx); dt.setAttribute('cy',cy); }
+  }
+
+  /* progress ticks for aid stations */
+  (function(){ var t=document.getElementById('ticks'); var h=''; for(var i=1;i<WP.length-1;i++){ h+='<i style="left:'+(WP[i].mi/TOT*100).toFixed(1)+'%"></i>'; } t.innerHTML=h; })();
+
+  /* position.json is refreshed by the GitHub Actions poller (.github/workflows/track.yml) */
+  var fetching=false;
+  async function refresh(){
+    if(fetching) return; fetching=true;
+    var btn=document.getElementById('refreshBtn'); btn.disabled=true; btn.textContent='…';
+    var got=null;
+    try{
+      var res=await fetch('position.json?t='+Date.now(),{cache:'no-store'});
+      if(res.ok){ var p=await res.json();
+        if(p && typeof p.lat==='number' && typeof p.lon==='number'){
+          got={lat:p.lat, lon:p.lon, ele:p.ele!=null?p.ele:null, ts:p.ts, speed_kmh:(p.speed_kmh!=null?p.speed_kmh:null), name:p.name||R.initial_fix.name};
+        }
+      }
+    }catch(e){}
+    if(got){ render(got); window.__ok=true; }
+    else if(!window.__ok){ document.getElementById('statusText').textContent='waiting for first position update…'; document.getElementById('liveDot').className='dot stale'; }
+    btn.disabled=false; btn.textContent='Refresh'; fetching=false;
+  }
+  document.getElementById('refreshBtn').addEventListener('click',refresh);
+
+  // seed rolling-pace history from the Action's positions.jsonl so a fresh page has his real recent trajectory
+  async function seedHistory(){
+    try{
+      var res=await fetch('positions.jsonl?t='+Date.now(),{cache:'no-store'});
+      if(!res.ok) return;
+      var pts=[];
+      res=(await res.text()).trim().split('\n');
+      for(var i=0;i<res.length;i++){ try{ var o=JSON.parse(res[i]); if(o&&typeof o.lat==='number'&&o.ts) pts.push(o); }catch(e){} }
+      if(pts.length<2) return;
+      pts.sort(function(a,b){return Date.parse(a.ts)-Date.parse(b.ts);});
+      hist=[];
+      for(var k=0;k<pts.length;k++){ var s=snapForward(pts[k].lat,pts[k].lon,Date.parse(pts[k].ts)); hist.push({ts:pts[k].ts,mi:courseMi(s.idx),eff:effCum[s.idx]}); }
+      if(hist.length>500) hist=hist.slice(-500);
+      try{ localStorage.setItem(LS,JSON.stringify(hist)); }catch(e){}
+    }catch(e){}
+  }
+
+  render(R.initial_fix);                          // instant paint from the baked snapshot
+  seedHistory().then(refresh);                    // load real history, then pull the latest fix
+  setInterval(refresh,120000);
+})();
+</script>
+</body>
+</html>
