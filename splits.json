@@ -1,5 +1,5 @@
 {
- "updated_at": "2026-09-18T20:42:32Z",
+ "updated_at": "2026-09-18T21:28:08Z",
  "start": "2026-09-18T15:00:10.900Z",
  "source": "live.aravaiparunning.com",
  "arrivals": [
@@ -21,7 +21,7 @@
   {
    "name": "Long Lake Station Out",
    "mi": 23.4,
-   "arrivedAt": null
+   "arrivedAt": "2026-09-18T20:50:07.030Z"
   },
   {
    "name": "Summit Lake Out",
