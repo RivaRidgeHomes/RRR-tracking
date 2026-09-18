@@ -73,6 +73,7 @@
   .aidrow .mi{color:var(--ink-dim); font-variant-numeric:tabular-nums; text-align:right; min-width:30px}
   .aidrow .et{color:var(--accent); font-variant-numeric:tabular-nums; min-width:50px; text-align:right}
   .aidrow.done .et{color:var(--done)}
+  .aidrow .et.act{color:var(--done); font-weight:700}                 /* official timing-mat arrival (bold green) */
 
   .foot{display:flex; gap:8px; padding:9px 16px 11px; align-items:center; justify-content:space-between; border-top:1px solid var(--line); flex:0 0 auto}
   .foot .src{font-size:10px; color:var(--ink-mute); line-height:1.35}
@@ -138,11 +139,11 @@
       <span class="fc" id="finClock">—</span>
       <span class="fi" id="finIn"></span>
     </div>
-    <div class="aidhdr"><span></span><span>Aid station</span><span>mph</span><span>mile</span><span>ETA</span></div>
+    <div class="aidhdr"><span></span><span>Aid station · <b style="color:var(--done)">arrived</b> / <b style="color:var(--accent)">eta</b></span><span>mph</span><span>mile</span><span>time</span></div>
     <div class="aids" id="aidList"></div>
   </div>
   <div class="foot">
-    <div class="src">inReach: share.garmin.com/seetedrun<br><span id="ageText">—</span></div>
+    <div class="src">inReach: share.garmin.com/seetedrun · splits: aravaipa<br><span id="ageText">—</span></div>
     <button class="refresh" id="refreshBtn">Refresh</button>
   </div>
 </div>
@@ -160,6 +161,7 @@
   var R=window.ROUTE, track=R.track, cum=R.cum_m, WP=R.waypoints, SCALE=R.scale;
   var M2MI=1/1609.34, KMH2MPH=0.621371;
   var TOT=R.official_total_mi;                       // 101.8
+  var SPLITS=null, SPLITS_START=null;                // official aid arrival times (splits.json), aligned to WP order
   var START_UTC=Date.parse('2026-09-18T15:00:00Z');  // his start: 09:00 MDT (UTC-6)
   function courseMi(idx){ return cum[idx]*M2MI/SCALE; }
 
@@ -259,26 +261,45 @@
     document.getElementById('runnerName').textContent=dispName;
 
     var sp=snapForward(fix.lat,fix.lon,Date.parse(fix.ts));
-    var curMi=courseMi(sp.idx);
-    runnerMk.setLatLng([fix.lat,fix.lon]);
-    doneLine.setLatLngs(latlngs.slice(0,sp.idx+1));
+    // Timing mats are authoritative: he's at least at the last aid he officially crossed.
+    var lastAidJ=-1;
+    if(SPLITS){ for(var ai=0; ai<WP.length && ai<SPLITS.length; ai++){ if(SPLITS[ai] && SPLITS[ai].arrivedAt) lastAidJ=ai; } }
+    var effIdx=Math.max(sp.idx, lastAidJ>=0?WP[lastAidJ].idx:0);   // confirmed progress (GPS or last mat, whichever is further)
+    var curMi=courseMi(effIdx);
+    runnerMk.setLatLng([fix.lat,fix.lon]);                          // marker stays at his actual GPS ping
+    doneLine.setLatLngs(latlngs.slice(0,effIdx+1));
 
-    var curEff=effCum[sp.idx];
+    var curEff=effCum[effIdx];
     pushFix(fix.ts,curMi,curEff);
     var elapsedH=(Date.parse(fix.ts)-START_UTC)/3600000;
     var inst=(fix.speed_kmh!=null)? fix.speed_kmh*KMH2MPH : null;
-    // effort pace (effort-miles per hour): recent history, else avg since start, else current speed
+
+    // --- effort pace, CALIBRATED off official timing-mat splits when available ---
+    // officialAvg: true avg effort pace over everything he's actually completed (mat-timed, exact).
+    // sinceAid:   current-leg pace, anchored to when he really left the last aid + his effort position now.
+    var officialAvg=null, sinceAid=null;
+    if(lastAidJ>=0){
+      var aidEff=effCum[WP[lastAidJ].idx], aidT=Date.parse(SPLITS[lastAidJ].arrivedAt);
+      var startT=SPLITS_START?Date.parse(SPLITS_START):START_UTC;
+      var hAvg=(aidT-startT)/3600000;
+      if(hAvg>0.1 && aidEff>0.3) officialAvg=aidEff/hAvg;
+      var hSince=(Date.parse(fix.ts)-aidT)/3600000, deSince=curEff-aidEff;
+      if(hSince>0.15 && deSince>0.3) sinceAid=deSince/hSince;   // needs a real sample to trust the current leg
+    }
     var rollE=rollingEffPace();
     var avgE=(elapsedH>0.3 && curEff>0.5)? curEff/elapsedH : null;
-    var effMph = rollE || avgE || inst || 2.5;
-    var paceSrc = rollE?'recent':(avgE?'avg':'est');
+    var effMph, paceSrc;
+    if(sinceAid && officialAvg){ effMph=0.6*sinceAid+0.4*officialAvg; paceSrc='splits+live'; }  // blend recent leg + true average
+    else if(officialAvg){       effMph=officialAvg;                    paceSrc='splits'; }
+    else if(rollE){             effMph=rollE;                          paceSrc='gps'; }
+    else {                      effMph=avgE||inst||2.5;                paceSrc=avgE?'gps-avg':'est'; }
     // --- forward projection with fatigue fade: projected pace declines with time-on-feet ahead ---
     var FADE_PER_HR=0.02, FADE_FLOOR=0.60;   // ~2%/hr slowdown from here, floored at 60% of current effort pace
     var proj={};                              // wpIndex -> {etaMin, legMph}
     (function(){
       var pm=0, prevEff=curEff, prevMi=curMi;
       for(var j=0;j<WP.length;j++){
-        if(WP[j].idx<=sp.idx) continue;       // already passed (track-position based, matches projection)
+        if(WP[j].idx<=effIdx) continue;       // already passed (confirmed by GPS or timing mat)
         var segEff=effCum[WP[j].idx]-prevEff;
         var fade=Math.max(FADE_FLOOR, 1-FADE_PER_HR*(pm/60));
         var segMin=segEff/(effMph*fade)*60;
@@ -290,7 +311,7 @@
     })();
 
     var next=null, nextI=-1;
-    for(var i=0;i<WP.length;i++){ if(WP[i].idx>sp.idx){ next=WP[i]; nextI=i; break; } }
+    for(var i=0;i<WP.length;i++){ if(WP[i].idx>effIdx){ next=WP[i]; nextI=i; break; } }
     var now=new Date();
     if(next){
       var rem=Math.max(0,next.mi-curMi), etaMin=proj[nextI].etaMin, lmph=proj[nextI].legMph;
@@ -324,18 +345,23 @@
 
     var html='';
     for(var j=0;j<WP.length;j++){
-      var w=WP[j], done=w.idx<=sp.idx, cls=done?'done':'';
-      if(next&&w===next) cls='now';
-      var et = done?'✓':fmtClock(new Date(now.getTime()+proj[j].etaMin*60000));
+      var w=WP[j];
+      var actual=(SPLITS&&SPLITS[j]&&SPLITS[j].arrivedAt)?SPLITS[j].arrivedAt:null;
+      var done=(w.idx<=effIdx)||!!actual, cls=done?'done':'';
+      if(next&&w===next&&!actual) cls='now';
+      var et, etCls='';
+      if(actual){ et=fmtClock(new Date(actual)); etCls=' act'; }   // official timing-mat arrival
+      else if(done){ et='✓'; }
+      else { et=fmtClock(new Date(now.getTime()+proj[j].etaMin*60000)); }
       var lp = done?'':proj[j].legMph.toFixed(1);
       html+='<div class="aidrow '+cls+'"><span class="idx">'+(j===WP.length-1?'F':j+1)+'</span>'+
             '<span class="nm">'+w.name+'</span>'+
             '<span class="lp">'+lp+'</span>'+
             '<span class="mi">'+w.mi.toFixed(1)+'</span>'+
-            '<span class="et">'+et+'</span></div>';
+            '<span class="et'+etCls+'">'+et+'</span></div>';
     }
     document.getElementById('aidList').innerHTML=html;
-    for(var k=0;k<WP.length;k++){ var el=aidMarkers[k].getElement(); if(!el)continue; var dd=el.querySelector('.aid-mk'); if(dd) dd.className='aid-mk'+(WP[k].idx<=sp.idx?' passed':(next&&WP[k]===next?' nextup':'')); }
+    for(var k=0;k<WP.length;k++){ var el=aidMarkers[k].getElement(); if(!el)continue; var dd=el.querySelector('.aid-mk'); if(dd) dd.className='aid-mk'+(WP[k].idx<=effIdx?' passed':(next&&WP[k]===next?' nextup':'')); }
 
     var ageMin=(Date.now()-Date.parse(fix.ts))/60000;
     var dot=document.getElementById('liveDot'), st=document.getElementById('statusText');
@@ -344,7 +370,7 @@
     st.textContent=(ageMin>15?('last fix '+whenStr):(moving?(inst.toFixed(1)+' mph · '+whenStr):('paused · '+whenStr)));
     document.getElementById('ageText').textContent='last point '+(ageMin<1.5?'just now':fmtDur(ageMin)+' ago')+' · off-route '+Math.round(sp.off_m)+' m';
 
-    drawElev(sp.idx);
+    drawElev(effIdx);
   }
 
   var elevBuilt=false;
@@ -377,10 +403,14 @@
   (function(){ var t=document.getElementById('ticks'); var h=''; for(var i=1;i<WP.length-1;i++){ h+='<i style="left:'+(WP[i].mi/TOT*100).toFixed(1)+'%"></i>'; } t.innerHTML=h; })();
 
   /* position.json is refreshed by the GitHub Actions poller (.github/workflows/track.yml) */
+  async function loadSplits(){
+    try{ var sr=await fetch('splits.json?t='+Date.now(),{cache:'no-store'}); if(sr.ok){ var sj=await sr.json(); if(sj&&sj.arrivals){ SPLITS=sj.arrivals; SPLITS_START=sj.start||null; } } }catch(e){}
+  }
   var fetching=false;
   async function refresh(){
     if(fetching) return; fetching=true;
-    var btn=document.getElementById('refreshBtn'); btn.disabled=true; btn.textContent='…';
+    var btn=document.getElementById('refreshBtn'); btn.disabled=true; btn.textContent='\u2026';
+    await loadSplits();
     var got=null;
     try{
       var res=await fetch('position.json?t='+Date.now(),{cache:'no-store'});
@@ -391,7 +421,7 @@
       }
     }catch(e){}
     if(got){ render(got); window.__ok=true; }
-    else if(!window.__ok){ document.getElementById('statusText').textContent='waiting for first position update…'; document.getElementById('liveDot').className='dot stale'; }
+    else if(!window.__ok){ document.getElementById('statusText').textContent='waiting for first position update\u2026'; document.getElementById('liveDot').className='dot stale'; }
     btn.disabled=false; btn.textContent='Refresh'; fetching=false;
   }
   document.getElementById('refreshBtn').addEventListener('click',refresh);
