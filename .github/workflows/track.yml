@@ -1,0 +1,36 @@
+name: Update inReach position
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"   # every 5 min (GitHub's minimum; runs are often delayed a few min)
+  workflow_dispatch:         # lets you trigger a refresh by hand
+  push:
+    branches: [ main ]       # refresh on deploy
+
+permissions:
+  contents: write            # allow committing position.json back to the repo
+
+concurrency:
+  group: track
+  cancel-in-progress: false
+
+jobs:
+  poll:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch latest position
+        run: python3 scripts/fetch_position.py
+
+      - name: Commit if changed
+        run: |
+          if [[ -n "$(git status --porcelain position.json positions.jsonl)" ]]; then
+            git config user.name  "inreach-bot"
+            git config user.email "actions@users.noreply.github.com"
+            git add position.json positions.jsonl
+            git commit -m "position: $(date -u +%H:%MZ)"
+            git push
+          else
+            echo "No position change."
+          fi
