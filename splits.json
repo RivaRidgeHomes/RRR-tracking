@@ -1,5 +1,5 @@
 {
- "updated_at": "2026-09-19T17:27:45Z",
+ "updated_at": "2026-09-19T21:42:02Z",
  "start": "2026-09-18T15:00:10.900Z",
  "source": "live.aravaiparunning.com",
  "arrivals": [
@@ -81,12 +81,12 @@
   {
    "name": "Long Lake Back",
    "mi": 88.1,
-   "arrivedAt": null
+   "arrivedAt": "2026-09-19T18:03:49.200Z"
   },
   {
    "name": "Mt Werner Back",
    "mi": 95.1,
-   "arrivedAt": null
+   "arrivedAt": "2026-09-19T20:42:46.810Z"
   },
   {
    "name": "Finish",
