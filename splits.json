@@ -1,5 +1,5 @@
 {
- "updated_at": "2026-09-19T01:32:00Z",
+ "updated_at": "2026-09-19T11:28:03Z",
  "start": "2026-09-18T15:00:10.900Z",
  "source": "live.aravaiparunning.com",
  "arrivals": [
@@ -24,7 +24,7 @@
    "arrivedAt": "2026-09-18T18:57:49.250Z"
   },
   {
-   "name": "Long Lake Station Out",
+   "name": "Long Lake Out",
    "mi": 23.4,
    "arrivedAt": "2026-09-18T20:50:07.030Z"
   },
@@ -46,27 +46,27 @@
   {
    "name": "Olympian Hall Out",
    "mi": 49.3,
-   "arrivedAt": null
+   "arrivedAt": "2026-09-19T02:34:19.370Z"
   },
   {
-   "name": "Lane of Pain 1 Out",
+   "name": "Lane of Pain Out",
    "mi": 53.6,
-   "arrivedAt": null
+   "arrivedAt": "2026-09-19T03:53:26.629Z"
   },
   {
-   "name": "Lane of Pain 2 Back",
+   "name": "Lane of Pain Back",
    "mi": 57.2,
-   "arrivedAt": null
+   "arrivedAt": "2026-09-19T05:06:50.990Z"
   },
   {
    "name": "Olympian Hall Back",
    "mi": 61.6,
-   "arrivedAt": null
+   "arrivedAt": "2026-09-19T06:51:57.700Z"
   },
   {
    "name": "Dry Lake Back",
    "mi": 68.3,
-   "arrivedAt": null
+   "arrivedAt": "2026-09-19T09:54:43.019Z"
   },
   {
    "name": "Billy's Rabbit Hole Back",
