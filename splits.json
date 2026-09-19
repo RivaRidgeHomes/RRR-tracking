@@ -1,5 +1,5 @@
 {
- "updated_at": "2026-09-19T14:42:21Z",
+ "updated_at": "2026-09-19T17:27:45Z",
  "start": "2026-09-18T15:00:10.900Z",
  "source": "live.aravaiparunning.com",
  "arrivals": [
@@ -76,7 +76,7 @@
   {
    "name": "Summit Lake Back",
    "mi": 79.9,
-   "arrivedAt": null
+   "arrivedAt": "2026-09-19T14:56:26.510Z"
   },
   {
    "name": "Long Lake Back",
