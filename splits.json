@@ -1,5 +1,5 @@
 {
- "updated_at": "2026-09-18T21:28:08Z",
+ "updated_at": "2026-09-19T01:32:00Z",
  "start": "2026-09-18T15:00:10.900Z",
  "source": "live.aravaiparunning.com",
  "arrivals": [
@@ -7,6 +7,11 @@
    "name": "Start",
    "mi": 0.0,
    "arrivedAt": "2026-09-18T15:00:10.900Z"
+  },
+  {
+   "name": "Preem",
+   "mi": 2.2,
+   "arrivedAt": "2026-09-18T15:54:43.119Z"
   },
   {
    "name": "Mt Werner Out",
@@ -26,21 +31,21 @@
   {
    "name": "Summit Lake Out",
    "mi": 29.3,
-   "arrivedAt": null
+   "arrivedAt": "2026-09-18T22:02:58.020Z"
   },
   {
    "name": "Billy's Rabbit Hole Out",
    "mi": 33.5,
-   "arrivedAt": null
+   "arrivedAt": "2026-09-18T23:03:32.460Z"
   },
   {
    "name": "Dry Lake Out",
-   "mi": 43.7,
-   "arrivedAt": null
+   "mi": 42.9,
+   "arrivedAt": "2026-09-19T00:58:15.720Z"
   },
   {
    "name": "Olympian Hall Out",
-   "mi": 50.5,
+   "mi": 49.3,
    "arrivedAt": null
   },
   {
@@ -55,12 +60,12 @@
   },
   {
    "name": "Olympian Hall Back",
-   "mi": 63.0,
+   "mi": 61.6,
    "arrivedAt": null
   },
   {
    "name": "Dry Lake Back",
-   "mi": 69.9,
+   "mi": 68.3,
    "arrivedAt": null
   },
   {
